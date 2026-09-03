@@ -8,27 +8,31 @@ import streamlit as st
 EXCEL_FILE = "registro_porteria.xlsx"
 CARPETA_HISTORIAL = "Historial_Diario"
 
-# Listas de opciones predeterminadas
+# Listas de opciones predeterminadas (reorganizadas por frecuencia de uso)
 OPCIONES_EMPRESA = [
-    "CASATORO RENAULT",
-    "CASATORO FORD",
-    "CASATORO VOLKSWAGEN",
-    "CASATORO BONAPARTE",
-    "BONAPARTE",
-    "MELOLLEVO FINANZAUTO",
-    "MELOLLEVO FINANDINA",
-    "MELOLLEVO CASATORO",
-    "CASATORO FUERA DE ESTANDAR",
-    "FUERA DE ESTANDAR",
-    "FINANDINA",
+    # --- Empresas más recurrentes ---
     "FINANZAUTO",
+    "FINANDINA",
+    "MELOLLEVO FINANDINA",
+    "MELOLLEVO FINANZAUTO",
+    "ARVAL",
+    "DAVIVIENDA",
+    "ALIANZA",
+    "CASATORO RENAULT",
     "INCHAPE",
     "DERCO",
     "PRACO",
+    "BONAPARTE",
+    "MELOLLEVO CASATORO",
+    # --- Resto de empresas ---
+    "CASATORO FORD",
+    "CASATORO VOLKSWAGEN",
+    "CASATORO BONAPARTE",
+    "CASATORO FUERA DE ESTANDAR",
+    "FUERA DE ESTANDAR",
     "MATRASE",
     "VIAUTOS",
     "CARFIAO",
-    "ALIANZA",
     "AUTOCOM",
     "ALCALA",
     "BRACHOAUTOS",
@@ -37,9 +41,7 @@ OPCIONES_EMPRESA = [
     "EQUIRENT",
     "BELLPI",
     "TOYOTA",
-    "DAVIVIENDA",
     "AMBACAR",
-    "ARVAL",
     "METROKIA",
     "COOVITEL",
     "RIDDARA",
@@ -49,6 +51,7 @@ OPCIONES_EMPRESA = [
 OPCIONES_PROCEDIMIENTO = [
     "RETIRAR VEHICULO/S",
     "INSPECCIONAR VEHICULO/S",
+    "RECOGER IMPRONTAS",
     "INSTALACION/DESINSTALACION ACCESORIOS",
     "INSTALACION GPS",
     "INSTALACION PELICULAS",
@@ -108,7 +111,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("🛃 Control de Acceso - Portería")
+# Título con fecha actual dinámica
+fecha_hoy_fmt = datetime.datetime.now().strftime("%d/%m/%Y")
+st.title(f"🛃 Control de Acceso - Portería ({fecha_hoy_fmt})")
 
 # Inicializar estados de formulario
 if "ing_nombre" not in st.session_state:
@@ -124,8 +129,9 @@ if "manual_procedimiento" not in st.session_state:
 
 
 def guardar_registro():
-  nombre = st.session_state.get("ing_nombre", "").strip()
-  cedula = st.session_state.get("ing_cedula", "").strip()
+  # Convertir automáticamente todos los campos a mayúsculas
+  nombre = st.session_state.get("ing_nombre", "").strip().upper()
+  cedula = st.session_state.get("ing_cedula", "").strip().upper()
 
   if not nombre or not cedula:
     st.session_state.msg_error = (
@@ -133,21 +139,23 @@ def guardar_registro():
     )
     return
 
-  # Obtener valor de empresa
+  # Obtener valor de empresa en mayúsculas
   if st.session_state.manual_empresa:
-    empresa_val = st.session_state.get("txt_empresa", "")
+    empresa_val = st.session_state.get("txt_empresa", "").strip().upper()
   else:
     sel = st.session_state.get("sel_empresa", "")
-    empresa_val = "" if sel.startswith("--") else sel
+    empresa_val = "" if sel.startswith("--") else sel.upper()
 
-  # Obtener valor de procedimiento
+  # Obtener valor de procedimiento en mayúsculas
   if st.session_state.manual_procedimiento:
-    procedimiento_val = st.session_state.get("txt_procedimiento", "")
+    procedimiento_val = (
+        st.session_state.get("txt_procedimiento", "").strip().upper()
+    )
   else:
     sel_p = st.session_state.get("sel_procedimiento", "")
-    procedimiento_val = "" if sel_p.startswith("--") else sel_p
+    procedimiento_val = "" if sel_p.startswith("--") else sel_p.upper()
 
-  placas = st.session_state.get("ing_placas", "")
+  placas = st.session_state.get("ing_placas", "").strip().upper()
 
   fecha_actual = datetime.datetime.now().strftime("%Y-%m-%d")
   hora_actual = datetime.datetime.now().strftime("%I:%M %p")
@@ -291,19 +299,19 @@ if not df_registros.empty:
 
     with col_wa:
       estado_txt = (
-          f"🔴 RETIRADO (Salida: {row['Hora Salida']})"
+          f"RETIRADO (Salida: {row['Hora Salida']})"
           if ya_salio
-          else "🟢 EN INSTALACIONES"
+          else "EN INSTALACIONES"
       )
       mensaje_wa = (
-          f"🛃 *CONTROL DE ACCESO PORTERÍA*\n\n"
-          f"👤 *Nombre:* {row['Nombre']}\n"
-          f"🆔 *Cédula:* {row['Cédula']}\n"
-          f"🏢 *Destino:* {row['Empresa/Patio']}\n"
-          f"📋 *Procedimiento:* {row['Procedimiento']}\n"
-          f"🚛 *Placas/VIN:* {row['Placas/VIN']}\n"
-          f"⏰ *Hora Ingreso:* {row['Hora Ingreso']}\n"
-          f"📊 *Estado:* {estado_txt}"
+          f"*CONTROL DE ACCESO LOGÍSTICA SAUZALITO*\n\n"
+          f"• *Nombre:* {row['Nombre']}\n"
+          f"• *Cédula:* {row['Cédula']}\n"
+          f"• *Destino:* {row['Empresa/Patio']}\n"
+          f"• *Procedimiento:* {row['Procedimiento']}\n"
+          f"• *Placas/VIN:* {row['Placas/VIN']}\n"
+          f"• *Hora Ingreso:* {row['Hora Ingreso']}\n"
+          f"• *Estado:* {estado_txt}"
       )
       url_wa = f"https://wa.me/?text={urllib.parse.quote(mensaje_wa)}"
 
