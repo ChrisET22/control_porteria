@@ -2,13 +2,23 @@ import datetime
 import os
 import shutil
 import urllib.parse
+from zoneinfo import ZoneInfo  # Para manejar la zona horaria de Colombia
 import pandas as pd
 import streamlit as st
+
+# Definir la zona horaria de Colombia (UTC-5)
+TZ_COLOMBIA = ZoneInfo("America/Bogota")
+
+
+def obtener_ahora():
+  """Retorna la fecha y hora actual ajustada a Colombia."""
+  return datetime.datetime.now(TZ_COLOMBIA)
+
 
 EXCEL_FILE = "registro_porteria.xlsx"
 CARPETA_HISTORIAL = "Historial_Diario"
 
-# Listas de opciones predeterminadas (reorganizadas por frecuencia de uso)
+# Listas de opciones predeterminadas
 OPCIONES_EMPRESA = [
     # --- Empresas más recurrentes ---
     "FINANZAUTO",
@@ -111,8 +121,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Título con fecha actual dinámica
-fecha_hoy_fmt = datetime.datetime.now().strftime("%d/%m/%Y")
+# Título con fecha actual formateada en hora Colombia
+fecha_hoy_fmt = obtener_ahora().strftime("%d/%m/%Y")
 st.title(f"🛃 Control de Acceso - Portería ({fecha_hoy_fmt})")
 
 # Inicializar estados de formulario
@@ -129,7 +139,6 @@ if "manual_procedimiento" not in st.session_state:
 
 
 def guardar_registro():
-  # Convertir automáticamente todos los campos a mayúsculas
   nombre = st.session_state.get("ing_nombre", "").strip().upper()
   cedula = st.session_state.get("ing_cedula", "").strip().upper()
 
@@ -139,14 +148,12 @@ def guardar_registro():
     )
     return
 
-  # Obtener valor de empresa en mayúsculas
   if st.session_state.manual_empresa:
     empresa_val = st.session_state.get("txt_empresa", "").strip().upper()
   else:
     sel = st.session_state.get("sel_empresa", "")
     empresa_val = "" if sel.startswith("--") else sel.upper()
 
-  # Obtener valor de procedimiento en mayúsculas
   if st.session_state.manual_procedimiento:
     procedimiento_val = (
         st.session_state.get("txt_procedimiento", "").strip().upper()
@@ -157,8 +164,9 @@ def guardar_registro():
 
   placas = st.session_state.get("ing_placas", "").strip().upper()
 
-  fecha_actual = datetime.datetime.now().strftime("%Y-%m-%d")
-  hora_actual = datetime.datetime.now().strftime("%I:%M %p")
+  ahora_col = obtener_ahora()
+  fecha_actual = ahora_col.strftime("%Y-%m-%d")
+  hora_actual = ahora_col.strftime("%I:%M %p")
 
   df = pd.read_excel(EXCEL_FILE, dtype=str).fillna("")
 
@@ -177,10 +185,8 @@ def guardar_registro():
   df = pd.concat([df, pd.DataFrame([nuevo_registro])], ignore_index=True)
   df.to_excel(EXCEL_FILE, index=False)
 
-  # Mensaje de éxito
   st.session_state.msg_exito = f"✅ Ingreso registrado para {nombre}"
 
-  # Limpiar campos de texto para el nuevo registro
   st.session_state.ing_nombre = ""
   st.session_state.ing_cedula = ""
   st.session_state.ing_placas = ""
@@ -206,7 +212,6 @@ with col_f1:
   st.text_input("Nombre Completo:", key="ing_nombre")
   st.text_input("Cédula:", key="ing_cedula")
 
-  # Manejo Híbrido Dinámico para Empresa / Patio
   if not st.session_state.manual_empresa:
     st.selectbox(
         "Empresa / Patio Destino (Seleccione o escriba abajo):",
@@ -227,7 +232,6 @@ with col_f1:
       st.rerun()
 
 with col_f2:
-  # Manejo Híbrido Dinámico para Procedimiento
   if not st.session_state.manual_procedimiento:
     st.selectbox(
         "Procedimiento / Labor (Seleccione o escriba abajo):",
@@ -257,7 +261,6 @@ st.button(
     on_click=guardar_registro,
 )
 
-# Mostrar alertas de estado tras el guardado
 if "msg_exito" in st.session_state:
   st.success(st.session_state.msg_exito)
   del st.session_state.msg_exito
@@ -266,7 +269,7 @@ if "msg_error" in st.session_state:
   st.error(st.session_state.msg_error)
   del st.session_state.msg_error
 
-# ---- TABLA DE REGISTROS (ORDEN MÁS RECIENTE ARRIBA) ----
+# ---- TABLA DE REGISTROS ----
 st.write("---")
 st.subheader("📋 Control de Personal del Día")
 
@@ -341,8 +344,8 @@ if not df_registros.empty:
         st.button("✔️ Retirado", key=f"salida_{idx}", disabled=True)
       else:
         if st.button("🔴 Salida", key=f"salida_{idx}"):
-          df_registros.loc[idx, "Hora Salida"] = (
-              datetime.datetime.now().strftime("%I:%M %p")
+          df_registros.loc[idx, "Hora Salida"] = obtener_ahora().strftime(
+              "%I:%M %p"
           )
           df_registros.loc[idx, "Estado"] = "Se Retiró"
           df_registros.to_excel(EXCEL_FILE, index=False)
@@ -389,9 +392,9 @@ with st.expander("📂 Opciones de Finalización de Día"):
       if not os.path.exists(CARPETA_HISTORIAL):
         os.makedirs(CARPETA_HISTORIAL)
 
-      fecha_hoy = datetime.datetime.now().strftime("%Y-%m-%d")
+      fecha_hoy_archivo = obtener_ahora().strftime("%Y-%m-%d")
       archivo_destino = os.path.join(
-          CARPETA_HISTORIAL, f"Registro_Porteria_{fecha_hoy}.xlsx"
+          CARPETA_HISTORIAL, f"Registro_Porteria_{fecha_hoy_archivo}.xlsx"
       )
 
       shutil.copy(EXCEL_FILE, archivo_destino)
